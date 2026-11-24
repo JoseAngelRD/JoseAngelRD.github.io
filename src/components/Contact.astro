@@ -1,0 +1,153 @@
+---
+import { profile } from "../data/profile";
+const links = [
+  { label: "GitHub", href: profile.github, ext: true },
+  { label: "LinkedIn", href: profile.linkedin, ext: true },
+  { label: "Currículum", href: profile.cv, ext: false },
+].filter((l) => l.href);
+---
+
+<section id="contacto" class="contact">
+  <div class="wrap">
+    <p class="label" data-reveal>Contacto</p>
+    <h2 data-reveal>¿Construimos<br /><em>algo juntos?</em></h2>
+
+    <div class="mail" data-reveal>
+      <a href={`mailto:${profile.email}`}>{profile.email}</a>
+      <button type="button" class="copy" data-email={profile.email}>Copiar</button>
+    </div>
+
+    <ul class="links" data-reveal>
+      {
+        links.map((l) => (
+          <li>
+            <a href={l.href} {...(l.ext ? { target: "_blank", rel: "noopener" } : { download: "" })}>
+              {l.label} <span>{l.ext ? "↗" : "↓"}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+
+  <footer class="wrap">
+    <span>© {new Date().getFullYear()} {profile.name} {profile.surname}</span>
+    <span>{profile.coords.lat.toFixed(4)}° N · {Math.abs(profile.coords.lon).toFixed(4)}° O</span>
+  </footer>
+</section>
+
+<style>
+  .contact {
+    position: relative;
+    margin-top: clamp(100px, 14vw, 180px);
+    padding-top: clamp(80px, 10vw, 120px);
+    border-top: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .contact::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 1100px;
+    height: 700px;
+    transform: translate(-50%, -55%);
+    background: radial-gradient(closest-side, rgba(255, 122, 69, 0.16), transparent);
+    pointer-events: none;
+  }
+  h2 {
+    margin: 20px 0 0;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(56px, 10vw, 140px);
+    line-height: 0.9;
+    letter-spacing: -0.03em;
+  }
+  h2 em {
+    color: #b9b7b1;
+  }
+  .mail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-top: 48px;
+  }
+  .mail a {
+    font-size: clamp(18px, 2.6vw, 30px);
+    letter-spacing: -0.01em;
+    background: linear-gradient(var(--accent), var(--accent)) 0 100% / 0% 1px no-repeat,
+      linear-gradient(var(--line-2), var(--line-2)) 0 100% / 100% 1px no-repeat;
+    padding-bottom: 4px;
+    transition: background-size 0.5s var(--ease);
+    word-break: break-all;
+  }
+  .mail a:hover {
+    background-size: 100% 1px, 100% 1px;
+  }
+  .copy {
+    padding: 7px 12px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .copy:hover {
+    color: var(--text);
+    border-color: var(--text);
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 36px;
+    margin: 40px 0 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--mono);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .links a {
+    color: var(--muted);
+    transition: color 0.2s;
+  }
+  .links a:hover {
+    color: var(--accent);
+  }
+  footer {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px 24px;
+    margin-top: clamp(80px, 12vw, 160px);
+    padding-top: 24px;
+    padding-bottom: 32px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>(".copy").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.email!);
+        btn.textContent = "Copiado ✓";
+      } catch {
+        btn.textContent = "Selecciona y copia";
+      }
+      setTimeout(() => (btn.textContent = "Copiar"), 1800);
+    });
+  });
+</script>

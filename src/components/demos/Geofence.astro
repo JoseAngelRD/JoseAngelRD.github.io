@@ -1,0 +1,460 @@
+---
+// Demo de FlyEarth: validación de proximidad con Haversine (igual que el servidor Django)
+---
+
+<div class="geo">
+  <canvas tabindex="0" aria-label="Mapa interactivo. Toca o haz clic para caminar; flechas del teclado para moverte."></canvas>
+
+  <div class="hud tl">
+    <div><span>lat</span><b class="h-lat">—</b></div>
+    <div><span>lon</span><b class="h-lon">—</b></div>
+    <div><span>dist</span><b class="h-dist">—</b><em>haversine</em></div>
+  </div>
+  <div class="hud tr">
+    <span class="chip">bloqueado</span>
+  </div>
+  <div class="hud bl">
+    <div><span>pasos</span><b class="h-steps">0</b></div>
+  </div>
+  <button class="reset" type="button">Reiniciar</button>
+
+</div>
+
+<style>
+  .geo {
+    position: relative;
+    container: geo / inline-size;
+    height: 390px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  canvas:focus-visible {
+    outline-offset: -2px;
+  }
+  .hud {
+    position: absolute;
+    pointer-events: none;
+    display: grid;
+    gap: 3px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    background: rgba(10, 11, 13, 0.78);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(6px);
+  }
+  .hud div {
+    display: flex;
+    gap: 10px;
+  }
+  .hud span {
+    width: 40px;
+    color: var(--faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 9.5px;
+    line-height: 16px;
+  }
+  .hud em {
+    font-style: normal;
+    color: var(--accent);
+    font-size: 9.5px;
+    line-height: 16px;
+  }
+  .hud b {
+    font-weight: 500;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl {
+    top: 12px;
+    left: 12px;
+  }
+  .tr {
+    top: 12px;
+    right: 12px;
+    padding: 0;
+    border: 0;
+    background: none;
+    backdrop-filter: none;
+  }
+  .bl {
+    left: 12px;
+    bottom: 12px;
+  }
+  .chip {
+    display: inline-block;
+    width: auto !important;
+    padding: 6px 10px !important;
+    border-radius: 999px;
+    border: 1px solid var(--line-2);
+    background: rgba(10, 11, 13, 0.78);
+    color: var(--muted) !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    transition: all 0.3s;
+  }
+  .chip.ok {
+    border-color: var(--ok);
+    color: var(--ok) !important;
+    box-shadow: 0 0 0 4px rgba(126, 226, 168, 0.12);
+  }
+  .reset {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    padding: 7px 11px;
+    border-radius: 8px;
+    border: 1px solid var(--line-2);
+    background: rgba(10, 11, 13, 0.78);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .reset:hover {
+    color: var(--text);
+    border-color: var(--text);
+  }
+  .code {
+    position: absolute;
+    right: 12px;
+    bottom: 52px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(10, 11, 13, 0.78);
+    border: 1px solid var(--line);
+    color: #a9a7a1;
+    font-size: 10.5px;
+    line-height: 1.6;
+    pointer-events: none;
+  }
+  .code .k {
+    color: var(--accent);
+  }
+  .code .f {
+    color: var(--text);
+  }
+  .code .c {
+    color: var(--faint);
+  }
+  .code .ok {
+    color: var(--ok);
+  }
+  @container geo (max-width: 520px) {
+    .code {
+      display: none;
+    }
+  }
+  @media (max-width: 640px) {
+    .geo {
+      height: 340px;
+    }
+  }
+</style>
+
+<script>
+  // Monumento a Colón (Punta del Sebo, Huelva)
+  const MON = { lat: 37.21225, lon: -6.9366, radius: 30, name: "MONUMENTO A COLÓN" };
+  const M_PER_DEG = 111320;
+  const R = 6371000;
+
+  function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  }
+
+  // Escenario en metros (x = este, y = norte) relativo al monumento
+  const WATER: [number, number][] = [
+    [-400, -400], [-400, 70], [-150, 55], [-70, 35], [-22, 8], [-6, -18], [8, -60], [30, -140], [60, -400],
+  ];
+  const ROADS: [number, number][][] = [
+    [[6, 14], [55, 38], [150, 70], [400, 120]],
+    [[22, -26], [52, -90], [72, -400]],
+    [[55, 38], [62, 140], [70, 400]],
+    [[150, 70], [175, -60], [190, -400]],
+    [[-150, 55], [-120, 140], [-110, 400]],
+  ];
+  const PIER: [number, number][] = [[-30, 20], [-95, -30]];
+
+  document.querySelectorAll<HTMLElement>(".geo").forEach((root) => {
+    const canvas = root.querySelector("canvas")!;
+    const ctx = canvas.getContext("2d")!;
+    const hLat = root.querySelector(".h-lat")!;
+    const hLon = root.querySelector(".h-lon")!;
+    const hDist = root.querySelector(".h-dist")!;
+    const hSteps = root.querySelector(".h-steps")!;
+    const chip = root.querySelector(".chip")!;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const START = { x: 60, y: 48 };
+    let player = { ...START };
+    let target: { x: number; y: number } | null = null;
+    let steps = 0;
+    let unlocked = false;
+    let flash = 0;
+    let w = 0, h = 0, dpr = 1, scale = 1, t = 0;
+    let dragging = false;
+    let running = false;
+    let visible = false;
+
+    function resize() {
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      w = canvas.clientWidth;
+      h = canvas.clientHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      scale = w / (w < 520 ? 170 : 240); // px por metro
+    }
+    const origin = () => ({ x: w * (w < 520 ? 0.4 : 0.38), y: h * 0.56 });
+    const toPx = (x: number, y: number) => {
+      const o = origin();
+      return { x: o.x + x * scale, y: o.y - y * scale };
+    };
+    const toM = (px: number, py: number) => {
+      const o = origin();
+      return { x: (px - o.x) / scale, y: (o.y - py) / scale };
+    };
+    const latLon = (p: { x: number; y: number }) => ({
+      lat: MON.lat + p.y / M_PER_DEG,
+      lon: MON.lon + p.x / (M_PER_DEG * Math.cos((MON.lat * Math.PI) / 180)),
+    });
+
+    function path(pts: [number, number][]) {
+      pts.forEach(([x, y], i) => {
+        const p = toPx(x, y);
+        i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#0c0e10";
+      ctx.fillRect(0, 0, w, h);
+
+      // Agua (ría)
+      ctx.beginPath();
+      path(WATER);
+      ctx.closePath();
+      ctx.fillStyle = "#0b1419";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(120,170,200,0.18)";
+      ctx.stroke();
+      // ondas del agua
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = "rgba(120,170,200,0.06)";
+      for (let i = -30; i < 30; i++) {
+        ctx.beginPath();
+        const y0 = i * 14 + ((t * 6) % 14);
+        ctx.moveTo(0, y0);
+        ctx.lineTo(w, y0 + w * 0.35);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Cuadrícula cada 20 m
+      ctx.strokeStyle = "rgba(236,235,231,0.035)";
+      ctx.lineWidth = 1;
+      const o = origin();
+      const step = 20 * scale;
+      for (let x = o.x % step; x < w; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = o.y % step; y < h; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // Calles y muelle
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (const r of ROADS) {
+        ctx.beginPath(); path(r);
+        ctx.strokeStyle = "#1c2025"; ctx.lineWidth = 9 * scale * 0.9; ctx.stroke();
+        ctx.strokeStyle = "rgba(236,235,231,0.05)"; ctx.lineWidth = 1; ctx.stroke();
+      }
+      ctx.beginPath(); path(PIER);
+      ctx.strokeStyle = "#20252b"; ctx.lineWidth = 3 * scale; ctx.stroke();
+
+      // Radio del monumento
+      const m = toPx(0, 0);
+      const rr = MON.radius * scale;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, rr, 0, Math.PI * 2);
+      ctx.fillStyle = unlocked ? "rgba(126,226,168,0.08)" : "rgba(255,122,69,0.07)";
+      ctx.fill();
+      ctx.setLineDash([4, 5]);
+      ctx.lineDashOffset = -t * 12;
+      ctx.strokeStyle = unlocked ? "rgba(126,226,168,0.7)" : "rgba(255,122,69,0.6)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (!reduce) {
+        const p = (t % 2.2) / 2.2;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, rr * p, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,122,69,${0.25 * (1 - p)})`;
+        ctx.stroke();
+      }
+      if (flash > 0) {
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, rr + (1 - flash) * 60, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(126,226,168,${flash})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      // Icono del monumento (rombo)
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = unlocked ? "#7ee2a8" : "#ff7a45";
+      ctx.fillRect(-5, -5, 10, 10);
+      ctx.restore();
+      ctx.font = "500 10px 'JetBrains Mono Variable', monospace";
+      ctx.fillStyle = "rgba(236,235,231,0.75)";
+      ctx.fillText(MON.name, m.x + 12, m.y + rr + 16);
+      ctx.fillStyle = "rgba(236,235,231,0.4)";
+      ctx.fillText(`r = ${MON.radius} m`, m.x + 12, m.y + rr + 30);
+
+      // Jugador y línea de distancia
+      const pp = toPx(player.x, player.y);
+      const d = Math.hypot(player.x, player.y);
+      if (d > MON.radius * 0.5) {
+        ctx.setLineDash([2, 4]);
+        ctx.strokeStyle = "rgba(236,235,231,0.3)";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pp.x, pp.y); ctx.lineTo(m.x, m.y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      if (target) {
+        const tp = toPx(target.x, target.y);
+        ctx.strokeStyle = "rgba(236,235,231,0.35)";
+        ctx.beginPath(); ctx.arc(tp.x, tp.y, 6, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(pp.x, pp.y, 16, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(110,160,255,0.14)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(pp.x, pp.y, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#6ea0ff";
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#0a0b0d";
+      ctx.stroke();
+    }
+
+    function updateHud() {
+      const ll = latLon(player);
+      const dist = haversine(ll.lat, ll.lon, MON.lat, MON.lon);
+      hLat.textContent = ll.lat.toFixed(5);
+      hLon.textContent = ll.lon.toFixed(5);
+      hDist.textContent = `${dist.toFixed(1)} m`;
+      hSteps.textContent = String(Math.floor(steps));
+      if (!unlocked && dist <= MON.radius) {
+        unlocked = true;
+        flash = 1;
+        chip.textContent = "✓ desbloqueado";
+        chip.classList.add("ok");
+      }
+    }
+
+    function moveTo(x: number, y: number) {
+      const dist = Math.hypot(x - player.x, y - player.y);
+      steps += dist / 0.75; // ~0,75 m por paso
+      player = { x, y };
+      updateHud();
+    }
+
+    let last = performance.now();
+    function loop(now: number) {
+      const dt = Math.max(0, Math.min(now - last, 50)) / 1000;
+      last = now;
+      t += dt;
+      if (target) {
+        const dx = target.x - player.x, dy = target.y - player.y;
+        const d = Math.hypot(dx, dy);
+        const speed = 55; // m/s (acelerado para la demo)
+        if (d < speed * dt) { moveTo(target.x, target.y); target = null; }
+        else moveTo(player.x + (dx / d) * speed * dt, player.y + (dy / d) * speed * dt);
+      }
+      if (flash > 0) flash = Math.max(0, flash - dt * 0.8);
+      draw();
+      if (running) requestAnimationFrame(loop);
+    }
+    function start() {
+      if (running || !visible) return;
+      running = true;
+      last = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    const local = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    canvas.addEventListener("pointerdown", (e) => {
+      const p = local(e);
+      const pp = toPx(player.x, player.y);
+      if (Math.hypot(p.x - pp.x, p.y - pp.y) < 22) {
+        dragging = true;
+        target = null;
+        canvas.setPointerCapture(e.pointerId);
+      } else {
+        target = toM(p.x, p.y);
+        if (reduce) { moveTo(target.x, target.y); target = null; draw(); }
+      }
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const p = local(e);
+      const m = toM(p.x, p.y);
+      moveTo(m.x, m.y);
+      if (reduce) draw();
+    });
+    const stop = () => (dragging = false);
+    canvas.addEventListener("pointerup", stop);
+    canvas.addEventListener("pointercancel", stop);
+    canvas.addEventListener("keydown", (e) => {
+      const k: Record<string, [number, number]> = {
+        ArrowUp: [0, 4], ArrowDown: [0, -4], ArrowLeft: [-4, 0], ArrowRight: [4, 0],
+      };
+      if (!k[e.key]) return;
+      e.preventDefault();
+      target = null;
+      moveTo(player.x + k[e.key][0], player.y + k[e.key][1]);
+      if (reduce) draw();
+    });
+    root.querySelector(".reset")!.addEventListener("click", () => {
+      player = { ...START };
+      target = null;
+      steps = 0;
+      unlocked = false;
+      chip.textContent = "bloqueado";
+      chip.classList.remove("ok");
+      updateHud();
+      draw();
+    });
+
+    resize();
+    updateHud();
+    draw();
+    addEventListener("resize", () => { resize(); draw(); });
+    new IntersectionObserver(([en]) => {
+      visible = en.isIntersecting;
+      if (visible && !reduce) start();
+      else running = false;
+      if (reduce) draw();
+    }).observe(canvas);
+  });
+</script>

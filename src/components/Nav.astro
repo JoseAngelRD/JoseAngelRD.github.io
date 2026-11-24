@@ -1,0 +1,85 @@
+---
+import { profile } from "../data/profile";
+---
+
+<header class="nav" id="nav">
+  <div class="wrap row">
+    <a href="#top" class="brand" aria-label="Inicio">
+      <span class="dot" aria-hidden="true"></span>
+      <span>{profile.name} {profile.surname.split(" ")[0]}</span>
+    </a>
+    <nav aria-label="Secciones">
+      <a href="#proyectos">Proyectos</a>
+      <a href="#stack">Stack</a>
+      <a href="#contacto" class="cta">Contacto</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 50;
+    padding: 18px 0;
+    transition: background 0.3s var(--ease), border-color 0.3s var(--ease), padding 0.3s var(--ease);
+    border-bottom: 1px solid transparent;
+  }
+  .nav.scrolled {
+    background: rgba(10, 11, 13, 0.72);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border-bottom-color: var(--line);
+    padding: 12px 0;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  nav {
+    display: flex;
+    gap: clamp(14px, 3vw, 32px);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  nav a {
+    transition: color 0.2s;
+  }
+  nav a:hover,
+  nav a.cta {
+    color: var(--text);
+  }
+  @media (max-width: 520px) {
+    nav a:not(.cta) {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  const nav = document.getElementById("nav")!;
+  const onScroll = () => nav.classList.toggle("scrolled", window.scrollY > 24);
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+</script>

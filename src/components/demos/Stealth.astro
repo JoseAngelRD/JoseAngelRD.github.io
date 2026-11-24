@@ -1,0 +1,400 @@
+---
+// Demo de IA de sigilo: máquina de estados + cono de visión con raycasting
+---
+
+<div class="st">
+  <div class="fsm" aria-live="polite">
+    <span class="s on" data-s="patrol">Patrulla</span>
+    <i aria-hidden="true">→</i>
+    <span class="s" data-s="suspicious">Sospecha</span>
+    <i aria-hidden="true">→</i>
+    <span class="s" data-s="chase">Persecución</span>
+    <span class="meter" aria-hidden="true"><b></b></span>
+  </div>
+  <canvas aria-label="Demo: un guardia patrulla una sala. Si entras en su cono de visión, sospecha y después te persigue."></canvas>
+  <p class="caught" hidden>¡Atrapado!</p>
+</div>
+
+<style>
+  .st {
+    position: relative;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .fsm {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .fsm i {
+    font-style: normal;
+    color: var(--faint);
+  }
+  .s {
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10px;
+    transition: all 0.25s;
+  }
+  .s.on[data-s="patrol"] {
+    color: var(--text);
+    border-color: var(--line-2);
+    background: var(--bg-3);
+  }
+  .s.on[data-s="suspicious"] {
+    color: var(--warn);
+    border-color: var(--warn);
+    background: rgba(255, 209, 102, 0.1);
+  }
+  .s.on[data-s="chase"] {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: rgba(255, 93, 93, 0.1);
+  }
+  .meter {
+    margin-left: auto;
+    width: 70px;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .meter b {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--warn);
+  }
+  canvas {
+    width: 100%;
+    aspect-ratio: 600 / 360;
+    cursor: none;
+    touch-action: none;
+  }
+  .caught {
+    position: absolute;
+    left: 50%;
+    top: 55%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 44px;
+    color: var(--danger);
+    pointer-events: none;
+    text-shadow: 0 0 30px rgba(255, 93, 93, 0.5);
+  }
+</style>
+
+<script>
+  type V = { x: number; y: number };
+  type Rect = { x: number; y: number; w: number; h: number };
+  type State = "patrol" | "suspicious" | "chase";
+
+  const W = 600, H = 360;
+  const WALLS: Rect[] = [
+    { x: 150, y: 90, w: 24, h: 150 },
+    { x: 330, y: 0, w: 24, h: 130 },
+    { x: 330, y: 240, w: 24, h: 120 },
+    { x: 450, y: 175, w: 110, h: 24 },
+    { x: 222, y: 275, w: 44, h: 44 },
+    { x: 40, y: 280, w: 60, h: 30 },
+  ];
+  const ROUTE: V[] = [
+    { x: 70, y: 50 }, { x: 290, y: 50 }, { x: 290, y: 190 },
+    { x: 410, y: 190 }, { x: 410, y: 310 }, { x: 560, y: 310 },
+  ];
+  const HIDE: V[] = [
+    { x: 60, y: 200 }, { x: 120, y: 330 }, { x: 205, y: 160 }, { x: 560, y: 140 },
+    { x: 560, y: 40 }, { x: 395, y: 40 }, { x: 290, y: 330 }, { x: 205, y: 60 },
+  ];
+  const FOV = (38 * Math.PI) / 180;
+  const RANGE = 175;
+
+  // Intersección rayo-rectángulo (método de slabs). Devuelve t o Infinity
+  function rayRect(o: V, d: V, r: Rect) {
+    let tmin = -Infinity, tmax = Infinity;
+    for (const [oc, dc, lo, hi] of [
+      [o.x, d.x, r.x, r.x + r.w],
+      [o.y, d.y, r.y, r.y + r.h],
+    ] as const) {
+      if (Math.abs(dc) < 1e-9) {
+        if (oc < lo || oc > hi) return Infinity;
+      } else {
+        let t1 = (lo - oc) / dc, t2 = (hi - oc) / dc;
+        if (t1 > t2) [t1, t2] = [t2, t1];
+        tmin = Math.max(tmin, t1);
+        tmax = Math.min(tmax, t2);
+        if (tmin > tmax) return Infinity;
+      }
+    }
+    return tmin >= 0 ? tmin : Infinity;
+  }
+  function castDist(o: V, ang: number, max: number) {
+    const d = { x: Math.cos(ang), y: Math.sin(ang) };
+    let best = max;
+    for (const r of WALLS) best = Math.min(best, rayRect(o, d, r));
+    // bordes de la sala
+    const tx = d.x > 0 ? (W - o.x) / d.x : d.x < 0 ? -o.x / d.x : Infinity;
+    const ty = d.y > 0 ? (H - o.y) / d.y : d.y < 0 ? -o.y / d.y : Infinity;
+    return Math.min(best, tx, ty);
+  }
+  const inWall = (p: V, pad = 7) =>
+    p.x < pad || p.y < pad || p.x > W - pad || p.y > H - pad ||
+    WALLS.some((r) => p.x > r.x - pad && p.x < r.x + r.w + pad && p.y > r.y - pad && p.y < r.y + r.h + pad);
+  const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+
+  // Movimiento con deslizamiento contra paredes
+  function step(p: V, to: V, speed: number, dt: number) {
+    const dx = to.x - p.x, dy = to.y - p.y, d = Math.hypot(dx, dy);
+    if (d < 0.5) return true;
+    const s = Math.min(d, speed * dt);
+    const nx = { x: p.x + (dx / d) * s, y: p.y };
+    if (!inWall(nx)) p.x = nx.x;
+    const ny = { x: p.x, y: p.y + (dy / d) * s };
+    if (!inWall(ny)) p.y = ny.y;
+    return d <= speed * dt;
+  }
+
+  document.querySelectorAll<HTMLElement>(".st").forEach((root) => {
+    const canvas = root.querySelector("canvas")!;
+    const ctx = canvas.getContext("2d")!;
+    const chips = [...root.querySelectorAll<HTMLElement>(".s")];
+    const meter = root.querySelector<HTMLElement>(".meter b")!;
+    const caughtEl = root.querySelector<HTMLElement>(".caught")!;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const guard = { x: 70, y: 50, a: 0 };
+    let wp = 1, dir = 1;
+    let state: State = "patrol";
+    let alert = 0;
+    let lastSeen: V | null = null;
+    let searchT = 0;
+    const thief = { x: 120, y: 330 };
+    let thiefTarget = HIDE[0];
+    let controlled = false;
+    let caughtT = 0;
+    let scale = 1, dpr = 1, t = 0;
+    let running = false, visible = false;
+
+    function setState(s: State) {
+      if (s === state) return;
+      state = s;
+      chips.forEach((c) => c.classList.toggle("on", c.dataset.s === s));
+    }
+
+    function resize() {
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      const cw = canvas.clientWidth;
+      scale = cw / W;
+      canvas.width = cw * dpr;
+      canvas.height = (cw * H / W) * dpr;
+      ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+    }
+
+    function canSee(p: V) {
+      const dx = p.x - guard.x, dy = p.y - guard.y, d = Math.hypot(dx, dy);
+      if (d > RANGE) return false;
+      if (Math.abs(angDiff(Math.atan2(dy, dx), guard.a)) > FOV) return false;
+      return castDist(guard, Math.atan2(dy, dx), d) >= d - 1;
+    }
+
+    function turnTo(target: number, dt: number, rate = 4) {
+      guard.a += angDiff(target, guard.a) * Math.min(1, rate * dt);
+    }
+
+    function update(dt: number) {
+      t += dt;
+      if (caughtT > 0) {
+        caughtT -= dt;
+        if (caughtT <= 0) caughtEl.hidden = true;
+        return;
+      }
+      // Ladrón autónomo cuando nadie lo controla
+      if (!controlled) {
+        if (step(thief, thiefTarget, state === "chase" ? 70 : 38, dt)) {
+          thiefTarget = HIDE[Math.floor(Math.random() * HIDE.length)];
+        }
+      }
+
+      const sees = canSee(thief);
+      if (sees) {
+        lastSeen = { x: thief.x, y: thief.y };
+        alert = Math.min(1, alert + dt * (state === "chase" ? 3 : 1.4));
+      } else {
+        alert = Math.max(0, alert - dt * (state === "chase" ? 0.25 : 0.45));
+      }
+
+      if (state === "patrol") {
+        if (sees) setState("suspicious");
+        const target = ROUTE[wp];
+        turnTo(Math.atan2(target.y - guard.y, target.x - guard.x), dt);
+        if (step(guard, target, 55, dt)) {
+          if (wp + dir < 0 || wp + dir >= ROUTE.length) dir *= -1;
+          wp += dir;
+        }
+      } else if (state === "suspicious") {
+        if (lastSeen) turnTo(Math.atan2(lastSeen.y - guard.y, lastSeen.x - guard.x), dt, 5);
+        if (alert >= 1) setState("chase");
+        if (!sees) {
+          searchT += dt;
+          guard.a += Math.sin(t * 2.4) * dt * 1.2; // mira alrededor
+          if (alert <= 0 && searchT > 1.2) {
+            searchT = 0;
+            setState("patrol");
+          }
+        } else searchT = 0;
+      } else {
+        const goal = sees ? thief : lastSeen;
+        if (goal) {
+          turnTo(Math.atan2(goal.y - guard.y, goal.x - guard.x), dt, 8);
+          const reached = step(guard, goal, 92, dt);
+          if (!sees && reached) {
+            lastSeen = null;
+            setState("suspicious");
+          }
+        } else setState("suspicious");
+        if (Math.hypot(thief.x - guard.x, thief.y - guard.y) < 15) {
+          caughtT = 1.4;
+          caughtEl.hidden = false;
+          alert = 0;
+          lastSeen = null;
+          setState("patrol");
+          if (!controlled) Object.assign(thief, { x: 120, y: 330 });
+        }
+      }
+      meter.style.width = `${alert * 100}%`;
+      meter.style.background = state === "chase" ? "var(--danger)" : "var(--warn)";
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = "#0c0e10";
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = "rgba(236,235,231,0.03)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= W; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y <= H; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      // Ruta de patrulla
+      ctx.setLineDash([2, 6]);
+      ctx.strokeStyle = "rgba(236,235,231,0.08)";
+      ctx.beginPath();
+      ROUTE.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Cono de visión por raycasting
+      const color = state === "chase" ? "255,93,93" : state === "suspicious" ? "255,209,102" : "236,235,231";
+      const grad = ctx.createRadialGradient(guard.x, guard.y, 4, guard.x, guard.y, RANGE);
+      grad.addColorStop(0, `rgba(${color},0.28)`);
+      grad.addColorStop(1, `rgba(${color},0.02)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(guard.x, guard.y);
+      const N = 48;
+      for (let i = 0; i <= N; i++) {
+        const ang = guard.a - FOV + (2 * FOV * i) / N;
+        const d = castDist(guard, ang, RANGE);
+        ctx.lineTo(guard.x + Math.cos(ang) * d, guard.y + Math.sin(ang) * d);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Paredes
+      for (const r of WALLS) {
+        ctx.fillStyle = "#1b1f24";
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.strokeStyle = "rgba(236,235,231,0.12)";
+        ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+      }
+
+      // Última posición vista
+      if (lastSeen && state !== "patrol") {
+        ctx.strokeStyle = `rgba(${color},0.6)`;
+        ctx.beginPath();
+        ctx.moveTo(lastSeen.x - 5, lastSeen.y - 5); ctx.lineTo(lastSeen.x + 5, lastSeen.y + 5);
+        ctx.moveTo(lastSeen.x + 5, lastSeen.y - 5); ctx.lineTo(lastSeen.x - 5, lastSeen.y + 5);
+        ctx.stroke();
+      }
+
+      // Ladrón
+      ctx.fillStyle = "#ff7a45";
+      ctx.beginPath();
+      ctx.arc(thief.x, thief.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = "500 10px 'JetBrains Mono Variable', monospace";
+      ctx.fillStyle = "rgba(236,235,231,0.6)";
+      ctx.fillText(controlled ? "TÚ" : "LADRÓN", thief.x + 10, thief.y - 8);
+
+      // Guardia
+      ctx.fillStyle = `rgb(${color})`;
+      ctx.beginPath();
+      ctx.arc(guard.x, guard.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#0a0b0d";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(guard.x, guard.y);
+      ctx.lineTo(guard.x + Math.cos(guard.a) * 8, guard.y + Math.sin(guard.a) * 8);
+      ctx.stroke();
+      if (state !== "patrol") {
+        ctx.fillStyle = `rgb(${color})`;
+        ctx.font = "700 14px 'JetBrains Mono Variable', monospace";
+        ctx.fillText(state === "chase" ? "!" : "?", guard.x - 4, guard.y - 14);
+      }
+    }
+
+    let last = performance.now();
+    function loop(now: number) {
+      update(Math.max(0, Math.min(now - last, 50)) / 1000);
+      last = now;
+      draw();
+      if (running) requestAnimationFrame(loop);
+    }
+    function start() {
+      if (running || !visible) return;
+      running = true;
+      last = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    const toWorld = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+    };
+    canvas.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse" && e.buttons === 0) return;
+      controlled = true;
+      const p = toWorld(e);
+      if (!inWall(p, 6)) Object.assign(thief, p);
+    });
+    canvas.addEventListener("pointerdown", (e) => {
+      controlled = true;
+      const p = toWorld(e);
+      if (!inWall(p, 6)) Object.assign(thief, p);
+    });
+    // Con movimiento reducido, la demo solo se anima mientras la usas
+    canvas.addEventListener("pointerenter", () => reduce && visible && start());
+    canvas.addEventListener("pointerleave", () => {
+      if (reduce) running = false;
+      controlled = false;
+      thiefTarget = HIDE[Math.floor(Math.random() * HIDE.length)];
+    });
+
+    resize();
+    draw();
+    addEventListener("resize", () => { resize(); draw(); });
+    new IntersectionObserver(([en]) => {
+      visible = en.isIntersecting;
+      if (visible && !reduce) start();
+      else running = false;
+    }).observe(canvas);
+  });
+</script>

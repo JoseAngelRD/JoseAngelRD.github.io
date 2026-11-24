@@ -1,0 +1,69 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import Project from "../components/Project.astro";
+import FolderTree from "../components/demos/FolderTree.astro";
+import Geofence from "../components/demos/Geofence.astro";
+import Stealth from "../components/demos/Stealth.astro";
+import Stack from "../components/Stack.astro";
+import Contact from "../components/Contact.astro";
+import { profile, projects } from "../data/profile";
+---
+
+<Base
+  title={`${profile.name} ${profile.surname} — ${profile.role}`}
+  description="Portfolio de José Ángel Romero: desarrollador de software junior (Java, Spring Boot, Kotlin, Django). Proyectos con demos interactivas.">
+  <Nav />
+  <main>
+    <Hero />
+
+    <section id="proyectos" class="wrap work">
+      <div class="section-head" data-reveal>
+        <h2>Trabajo <em>seleccionado</em></h2>
+        <span class="rule"></span>
+        <span class="label">03 proyectos</span>
+      </div>
+
+      <Project
+        project={projects.controlTotal}
+        window="Control Total — Alta de empresa"
+        hint="Pulsa «Dar de alta» → petición a la API y creación del árbol documental.">
+        <FolderTree />
+      </Project>
+
+      <Project
+        project={projects.flyEarth}
+        window="FlyEarth — Huelva"
+        hint="Toca el mapa para caminar o arrastra el punto azul hasta el radio del monumento."
+        flip>
+        <Geofence />
+      </Project>
+
+      <Project
+        project={projects.games}
+        window="Thief Game — IA del guardia"
+        hint="Evita que el vecino te atrape. Muévete usando el ratón.">
+        <Stealth />
+      </Project>
+    </section>
+
+    <Stack />
+    <Contact />
+  </main>
+</Base>
+
+<style>
+  .work {
+    padding-top: clamp(80px, 12vw, 140px);
+  }
+  .work .section-head {
+    margin-bottom: 0;
+    padding-bottom: clamp(32px, 5vw, 56px);
+  }
+  @media (max-width: 640px) {
+    .work .section-head .label {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,166 @@
+---
+import { stack, timeline } from "../data/profile";
+---
+
+<section id="stack" class="wrap">
+  <div class="section-head" data-reveal>
+    <h2>Stack <em>&amp;</em> recorrido</h2>
+    <span class="rule"></span>
+  </div>
+
+  <div class="grid">
+    <ul class="stack" data-reveal>
+      {
+        stack.map((g) => (
+          <li>
+            <span class="label">{g.group}</span>
+            <span class="items">
+              {g.items.map((it, i) => (
+                <>
+                  {i > 0 && <i aria-hidden="true">/</i>}
+                  <span>{it}</span>
+                </>
+              ))}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+
+    <ol class="timeline" data-reveal>
+      {
+        timeline.map((e) => (
+          <li class:list={{ now: "now" in e && e.now }}>
+            <span class="year">{e.year}</span>
+            <span class="pin" aria-hidden="true" />
+            <span class="what">
+              <b>{e.title}</b>
+              {e.detail && <small>{e.detail}</small>}
+            </span>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  section {
+    padding-top: clamp(80px, 12vw, 140px);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
+    gap: clamp(40px, 6vw, 96px);
+    align-items: start;
+  }
+  .stack {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .stack li {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 16px;
+    align-items: baseline;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+    transition: padding 0.3s var(--ease);
+  }
+  .stack li:first-child {
+    border-top: 1px solid var(--line);
+  }
+  .stack li:hover {
+    padding-left: 10px;
+  }
+  .stack li:hover .label {
+    color: var(--accent);
+  }
+  .label {
+    transition: color 0.2s;
+  }
+  .items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: clamp(17px, 1.8vw, 22px);
+    letter-spacing: -0.01em;
+  }
+  .items i {
+    font-style: normal;
+    color: var(--faint);
+  }
+
+  .timeline {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 61px;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: linear-gradient(var(--line-2), var(--accent));
+  }
+  .timeline li {
+    display: grid;
+    grid-template-columns: 48px 26px 1fr;
+    align-items: start;
+    gap: 0;
+    padding: 0 0 30px;
+  }
+  .year {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    padding-top: 3px;
+  }
+  .pin {
+    width: 9px;
+    height: 9px;
+    margin: 6px 0 0 9px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--line-2);
+    position: relative;
+    z-index: 1;
+  }
+  .now .pin {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 5px var(--accent-soft);
+  }
+  .now .year {
+    color: var(--accent);
+  }
+  .what {
+    display: grid;
+    gap: 2px;
+  }
+  .what b {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 24px;
+    line-height: 1.1;
+  }
+  .what small {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  @media (max-width: 900px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 520px) {
+    .stack li {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+  }
+</style>

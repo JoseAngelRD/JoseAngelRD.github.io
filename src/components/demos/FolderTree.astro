@@ -1,0 +1,334 @@
+---
+import { folderTemplate } from "../../data/profile";
+---
+
+<div class="ct" data-template={JSON.stringify(folderTemplate)}>
+  <div class="arch" aria-label="Arquitectura: cliente JavaFX, API Spring Boot y MySQL">
+    <span class="node" data-n="0">JavaFX</span>
+    <span class="wire"><i></i><b>HTTP</b></span>
+    <span class="node" data-n="1">Spring Boot</span>
+    <span class="wire"><i></i><b>JPA</b></span>
+    <span class="node" data-n="2">MySQL</span>
+  </div>
+
+  <form class="form">
+    <label>
+      <span>NIF / CIF</span>
+      <output class="f-nif">B21000001</output>
+    </label>
+    <label class="grow">
+      <span>Denominación social</span>
+      <output class="f-name">Talleres del Odiel S.L.</output>
+    </label>
+    <button type="submit" class="go">Dar de alta</button>
+  </form>
+
+  <div class="tree" aria-live="polite">
+    <div class="root"><span class="ico"></span><span class="path">\\servidor\B21000001\</span></div>
+    <ol class="lines"></ol>
+    <p class="empty">Sin carpeta todavía. Da de alta la empresa.</p>
+  </div>
+
+  <div class="foot">
+    <span class="req">—</span>
+    <span class="count"><b>0</b>/<span class="total">0</span> carpetas</span>
+  </div>
+</div>
+
+<style>
+  .ct {
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .arch {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .node {
+    flex: none;
+    padding: 7px 11px;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    background: var(--bg-3);
+    color: #c9c7c1;
+    transition: border-color 0.3s, color 0.3s, box-shadow 0.3s;
+  }
+  .node.on {
+    border-color: var(--accent);
+    color: var(--text);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  .wire {
+    position: relative;
+    flex: 1;
+    height: 1px;
+    background: var(--line-2);
+    margin: 0 6px;
+  }
+  .wire b {
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 400;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    color: var(--faint);
+  }
+  .wire i {
+    position: absolute;
+    top: -3px;
+    left: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    opacity: 0;
+  }
+  .form {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .form label {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+  .form label.grow {
+    flex: 1;
+    min-width: 160px;
+  }
+  .form label span {
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .form output {
+    display: block;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .go {
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #1a0d06;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s, opacity 0.2s;
+  }
+  .go:hover {
+    filter: brightness(1.1);
+  }
+  .go:disabled {
+    opacity: 0.45;
+    cursor: progress;
+  }
+  .tree {
+    position: relative;
+    height: 268px;
+    overflow: auto;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-2) transparent;
+  }
+  .root {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+  }
+  .lines {
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .lines :global(li) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 22px;
+    white-space: nowrap;
+    color: #c9c7c1;
+    animation: appear 0.6s var(--ease);
+  }
+  .lines :global(li.dir) {
+    color: var(--text);
+  }
+  .lines :global(.guide) {
+    flex: none;
+    align-self: stretch;
+    border-left: 1px solid var(--line-2);
+    margin-left: 6px;
+    width: 12px;
+  }
+  .ico,
+  .lines :global(.ico) {
+    flex: none;
+    width: 13px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--faint);
+    position: relative;
+  }
+  .ico::before,
+  .lines :global(.ico)::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 0;
+    width: 6px;
+    height: 3px;
+    border-radius: 1px 1px 0 0;
+    background: inherit;
+  }
+  .lines :global(li.dir .ico) {
+    background: var(--accent);
+  }
+  .empty {
+    margin: 10px 0 0;
+    color: var(--faint);
+  }
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .req.ok {
+    color: var(--ok);
+  }
+  .count b {
+    color: var(--text);
+    font-weight: 500;
+  }
+  @keyframes appear {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+      color: var(--accent);
+    }
+  }
+  @media (max-width: 520px) {
+    .node {
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+  }
+</style>
+
+<script>
+  type Line = { depth: number; name: string; leaf: boolean };
+  const companies = [
+    ["B21000001", "Talleres del Odiel S.L."],
+    ["B21000002", "Conservas Punta Umbría S.L."],
+    ["A21000003", "Fresas de Moguer S.A."],
+    ["B21000004", "Náutica Mazagón S.L."],
+  ];
+
+  document.querySelectorAll<HTMLElement>(".ct").forEach((root) => {
+    const template: string[] = JSON.parse(root.dataset.template!);
+    const form = root.querySelector<HTMLFormElement>(".form")!;
+    const btn = root.querySelector<HTMLButtonElement>(".go")!;
+    const list = root.querySelector<HTMLOListElement>(".lines")!;
+    const tree = root.querySelector<HTMLElement>(".tree")!;
+    const empty = root.querySelector<HTMLElement>(".empty")!;
+    const rootPath = root.querySelector<HTMLElement>(".root .path")!;
+    const req = root.querySelector<HTMLElement>(".req")!;
+    const countEl = root.querySelector<HTMLElement>(".count b")!;
+    const nodes = [...root.querySelectorAll<HTMLElement>(".node")];
+    const wires = [...root.querySelectorAll<HTMLElement>(".wire i")];
+    const nif = root.querySelector<HTMLElement>(".f-nif")!;
+    const name = root.querySelector<HTMLElement>(".f-name")!;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    root.querySelector(".total")!.textContent = String(template.length);
+
+    // Convierte las rutas en líneas de árbol (carpetas intermedias incluidas)
+    const lines: Line[] = [];
+    const seen = new Set<string>();
+    for (const path of template) {
+      const parts = path.split("/");
+      parts.forEach((part, i) => {
+        const key = parts.slice(0, i + 1).join("/");
+        if (seen.has(key)) return;
+        seen.add(key);
+        lines.push({ depth: i, name: part, leaf: i === parts.length - 1 });
+      });
+    }
+
+    let run = 0;
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, reduce ? 0 : ms));
+    const travel = async (i: number) => {
+      nodes[i].classList.add("on");
+      if (!reduce) {
+        await wires[i].animate(
+          [
+            { left: "0%", opacity: 1 },
+            { left: "calc(100% - 7px)", opacity: 1 },
+          ],
+          { duration: 420, easing: "ease-in-out" },
+        ).finished;
+      }
+      nodes[i].classList.remove("on");
+      nodes[i + 1].classList.add("on");
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = ++run;
+      btn.disabled = true;
+      const [cif, denom] = companies[(id - 1) % companies.length];
+      nif.textContent = cif;
+      name.textContent = denom;
+      list.innerHTML = "";
+      empty.hidden = true;
+      countEl.textContent = "0";
+      rootPath.textContent = `\\\\servidor\\${cif}\\`;
+      req.className = "req";
+      req.textContent = "POST /api/empresas …";
+
+      await travel(0);
+      await travel(1);
+      await wait(180);
+      nodes.forEach((n) => n.classList.remove("on"));
+      req.textContent = "POST /api/empresas → 200 OK";
+      req.classList.add("ok");
+
+      let leaves = 0;
+      for (const l of lines) {
+        if (id !== run) return;
+        const li = document.createElement("li");
+        li.className = l.leaf ? "" : "dir";
+        for (let d = 0; d < l.depth; d++) li.append(Object.assign(document.createElement("span"), { className: "guide" }));
+        li.append(Object.assign(document.createElement("span"), { className: "ico" }), l.name);
+        list.append(li);
+        if (l.leaf) countEl.textContent = String(++leaves);
+        tree.scrollTop = tree.scrollHeight;
+        await wait(l.leaf ? 26 : 60);
+      }
+      btn.disabled = false;
+      btn.textContent = "Otra alta";
+    });
+  });
+</script>

@@ -1,0 +1,341 @@
+---
+import { profile } from "../data/profile";
+const fmt = (n: number, pos: string, neg: string) => `${Math.abs(n).toFixed(4)}° ${n >= 0 ? pos : neg}`;
+const coordText = `${fmt(profile.coords.lat, "N", "S")} · ${fmt(profile.coords.lon, "E", "O")}`;
+---
+
+<section class="hero" id="top">
+  <canvas
+    id="field"
+    aria-hidden="true"
+    data-lat={profile.coords.lat}
+    data-lon={profile.coords.lon}
+    data-place={profile.location}></canvas>
+
+  <div class="wrap content">
+    <p class="label intro">{profile.role} — {profile.location}</p>
+    <h1>
+      <span class="first">{profile.name}</span>
+      <em>{profile.surname}</em>
+    </h1>
+    <p class="tag">{profile.tagline}</p>
+    <ul class="stack" aria-label="Tecnologías principales">
+      {profile.stack.map((s) => <li>{s}</li>)}
+    </ul>
+    <div class="ctas">
+      <a href="#proyectos" class="btn primary">Ver proyectos <span class="arrow">→</span></a>
+      {profile.cv && <a href={profile.cv} class="btn" download>Descargar CV <span class="arrow">↓</span></a>}
+    </div>
+  </div>
+
+  <div class="hud wrap" aria-hidden="true">
+    <span class="status"><i></i>{profile.availability}</span>
+    <span class="readout" id="readout">{coordText}</span>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+  }
+  /* Viñeta para que el texto respire sobre el campo de puntos */
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 60% 70% at 18% 50%, rgba(10, 11, 13, 0.85), transparent 70%),
+      linear-gradient(to bottom, transparent 70%, var(--bg));
+  }
+  .content {
+    padding-top: 120px;
+    padding-bottom: 120px;
+    pointer-events: none;
+  }
+  .content a {
+    pointer-events: auto;
+  }
+  .intro {
+    margin: 0 0 28px;
+  }
+  h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(60px, 11.5vw, 168px);
+    line-height: 0.88;
+    letter-spacing: -0.035em;
+  }
+  h1 span,
+  h1 em {
+    display: block;
+  }
+  h1 em {
+    color: #b9b7b1;
+    padding-left: 0.5em;
+  }
+  .tag {
+    margin: 36px 0 0;
+    max-width: 30ch;
+    font-size: clamp(17px, 1.6vw, 20px);
+    color: var(--muted);
+  }
+  .stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .stack li {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    color: #c9c7c1;
+    background: rgba(10, 11, 13, 0.5);
+  }
+  .ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 40px;
+  }
+  .hud {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 28px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .status i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 12px var(--ok);
+    animation: blink 2.4s infinite;
+  }
+  .readout {
+    font-variant-numeric: tabular-nums;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @media (max-width: 640px) {
+    .hud {
+      flex-direction: column;
+      gap: 6px;
+    }
+    h1 em {
+      padding-left: 0;
+    }
+  }
+</style>
+
+<script>
+  const canvas = document.getElementById("field") as HTMLCanvasElement;
+  const readout = document.getElementById("readout")!;
+  const ctx = canvas.getContext("2d")!;
+  const LAT = Number(canvas.dataset.lat);
+  const LON = Number(canvas.dataset.lon);
+  const PLACE = canvas.dataset.place ?? "";
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let w = 0,
+    h = 0,
+    dpr = 1,
+    t = 0,
+    running = false,
+    visible = true;
+  const mouse = { x: -9999, y: -9999, active: false };
+  const GAP = 24;
+  const DEG_PER_PX = 0.00009; // ~10 m por píxel
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = canvas.clientWidth;
+    h = canvas.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function beacon() {
+    return w < 720 ? { x: w * 0.72, y: h * 0.16 } : { x: w * 0.8, y: h * 0.27 };
+  }
+
+  // "Relieve" sintético: suma de ondas que se mueve despacio
+  function elevation(x: number, y: number) {
+    return (
+      Math.sin(x * 0.011 + t * 0.35) * Math.cos(y * 0.013 - t * 0.25) * 0.55 +
+      Math.sin((x + y) * 0.005 + t * 0.18) * 0.45
+    );
+  }
+
+  const fmt = (n: number, pos: string, neg: string) =>
+    `${Math.abs(n).toFixed(4)}° ${n >= 0 ? pos : neg}`;
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    const b = beacon();
+
+    for (let y = GAP / 2; y < h; y += GAP) {
+      for (let x = GAP / 2; x < w; x += GAP) {
+        const e = elevation(x, y);
+        let px = x,
+          py = y,
+          r = 0.7 + (e + 1) * 0.45,
+          a = 0.07 + (e + 1) * 0.09;
+        let accent = Math.abs(e - 0.42) < 0.035; // curvas de nivel
+
+        if (mouse.active) {
+          const dx = x - mouse.x,
+            dy = y - mouse.y,
+            d = Math.hypot(dx, dy);
+          if (d < 170) {
+            const f = 1 - d / 170;
+            px += (dx / (d || 1)) * f * 10;
+            py += (dy / (d || 1)) * f * 10;
+            a += f * 0.45;
+            r += f * 0.8;
+          }
+        }
+        ctx.fillStyle = accent ? `rgba(255,122,69,${Math.min(a + 0.35, 0.85)})` : `rgba(236,235,231,${a})`;
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Baliza en la ubicación
+    const period = 2.6;
+    for (let i = 0; i < 3; i++) {
+      const p = ((t / period + i / 3) % 1 + 1) % 1;
+      ctx.strokeStyle = `rgba(255,122,69,${(1 - p) * 0.55})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 6 + p * 90, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#ff7a45";
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = "500 10px 'JetBrains Mono Variable', monospace";
+    // Si la etiqueta no cabe a la derecha, se dibuja a la izquierda de la baliza
+    const left = b.x + 150 > w;
+    ctx.textAlign = left ? "right" : "left";
+    const lx = left ? b.x - 14 : b.x + 14;
+    ctx.fillStyle = "rgba(236,235,231,0.7)";
+    ctx.fillText(PLACE.toUpperCase(), lx, b.y - 6);
+    ctx.fillStyle = "rgba(236,235,231,0.4)";
+    ctx.fillText(`${LAT.toFixed(4)}, ${LON.toFixed(4)}`, lx, b.y + 8);
+    ctx.textAlign = "left";
+
+    // Retícula del cursor
+    if (mouse.active) {
+      ctx.strokeStyle = "rgba(236,235,231,0.08)";
+      ctx.beginPath();
+      ctx.moveTo(mouse.x, 0);
+      ctx.lineTo(mouse.x, h);
+      ctx.moveTo(0, mouse.y);
+      ctx.lineTo(w, mouse.y);
+      ctx.stroke();
+      // línea hasta la baliza con distancia aproximada
+      ctx.setLineDash([3, 5]);
+      ctx.strokeStyle = "rgba(255,122,69,0.35)";
+      ctx.beginPath();
+      ctx.moveTo(mouse.x, mouse.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const km = (Math.hypot(mouse.x - b.x, mouse.y - b.y) * DEG_PER_PX * 111.32).toFixed(2);
+      ctx.fillStyle = "rgba(255,122,69,0.9)";
+      ctx.fillText(`${km} km`, mouse.x + 12, mouse.y - 10);
+    }
+  }
+
+  function updateReadout() {
+    const b = beacon();
+    const lat = LAT - (mouse.y - b.y) * DEG_PER_PX;
+    const lon = LON + (mouse.x - b.x) * DEG_PER_PX;
+    readout.textContent = `${fmt(lat, "N", "S")} · ${fmt(lon, "E", "O")}`;
+  }
+
+  let last = performance.now();
+  function loop(now: number) {
+    t += Math.max(0, Math.min(now - last, 50)) / 1000;
+    last = now;
+    draw();
+    if (running) requestAnimationFrame(loop);
+  }
+  function start() {
+    if (reduce || running || !visible) return;
+    running = true;
+    last = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  resize();
+  draw();
+  start();
+
+  window.addEventListener("resize", () => {
+    resize();
+    draw();
+  });
+  const hero = canvas.parentElement!;
+  hero.addEventListener("pointermove", (e) => {
+    const r = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - r.left;
+    mouse.y = e.clientY - r.top;
+    mouse.active = e.pointerType === "mouse";
+    if (mouse.active) updateReadout();
+    if (reduce) draw();
+  });
+  hero.addEventListener("pointerleave", () => {
+    mouse.active = false;
+    if (reduce) draw();
+  });
+  new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting;
+    if (visible) start();
+    else running = false;
+  }).observe(canvas);
+</script>
