@@ -1,4 +1,4 @@
-# José Ángel Romero Delgado · Portafolio Romero Delgado
+# José Ángel Romero Delgado · Portafolio
 
 Portafolio personal de desarrollador de software: **Backend, Full-Stack, SQL. Móviles y escritorio.**
 Incluye tres demos interactivas hechas a mano, una por proyecto:
