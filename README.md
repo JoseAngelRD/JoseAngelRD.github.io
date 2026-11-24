@@ -1,7 +1,7 @@
 # José Ángel Romero Delgado · Portafolio
 
 Portafolio personal de desarrollador de software: **Backend, Full-Stack, SQL. Móviles y escritorio.**
-Incluye tres demos interactivas hechas a mano, una por proyecto:
+Incluye tres demos interactivas, una por proyecto:
 
 | Proyecto | Demo | Tecnologías |
 | --- | --- | --- |
@@ -40,13 +40,6 @@ src/
 └── styles/global.css
 public/                Favicon y CV en PDF
 ```
-
-Para cambiar textos, enlaces, métricas o la plantilla de carpetas basta con editar `src/data/profile.ts`.
-
-## Despliegue
-
-Cada `push` a `main` lanza `.github/workflows/deploy.yml`, que compila y publica en GitHub Pages
-(*Settings → Pages → Source: GitHub Actions*).
 
 ## Contacto
 
