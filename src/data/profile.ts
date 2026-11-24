@@ -13,7 +13,7 @@ export const profile = {
   email: "joseangelrds2003@gmail.com",
   github: "https://github.com/JoseAngelRD",
   linkedin: "", // p. ej. "https://www.linkedin.com/in/tu-perfil"
-  cv: `${import.meta.env.BASE_URL}/Jose_Angel_Romero_CV.pdf`,
+  cv: `${import.meta.env.BASE_URL}Jose_Angel_Romero_CV.pdf`,
 };
 
 export const projects = {

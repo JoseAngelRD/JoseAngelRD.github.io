@@ -1,4 +1,4 @@
-# Portafolio · José Ángel Romero Delgado
+# José Ángel Romero Delgado · Portafolio Romero Delgado
 
 Portafolio personal de desarrollador de software: **Backend, Full-Stack, SQL. Móviles y escritorio.**
 Incluye tres demos interactivas hechas a mano, una por proyecto:
@@ -9,7 +9,7 @@ Incluye tres demos interactivas hechas a mano, una por proyecto:
 | **FlyEarth** | Geovalla de 30 m alrededor de un monumento real, con distancia calculada por Haversine | Kotlin, MapLibre, Retrofit, Django REST, MySQL |
 | **IA para videojuegos** | Guardia con máquina de estados y cono de visión por raycasting | Unity, C#, Máquina de estados, NavMesh |
 
-🌐 **Web:** https://joseangelrd.github.io/Portafolio/
+🌐 **Web:** https://joseangelrd.github.io/
 
 ## Stack del sitio
 
@@ -23,7 +23,7 @@ Incluye tres demos interactivas hechas a mano, una por proyecto:
 
 ```bash
 npm install
-npm run dev      # http://localhost:4321/Portafolio/
+npm run dev      # http://localhost:4321/
 npm run build    # genera ./dist
 npm run preview  # sirve ./dist
 ```
